@@ -1,9 +1,13 @@
 #testing
-import datetime
+
+from datetime import datetime
 import itertools
 import json
 import os
+from turtle import title
+from unicodedata import category
 import pymysql
+from pyautogui import typewrite
 
 
 #Global Variables
@@ -14,22 +18,24 @@ _pass="";
 
 #Class of Word Object
 class Notes:
-    id_iter = itertools.count()
-  
-    def __init__(self, title, content):
+    now = datetime.now();
+    id_iter = itertools.count();
+    category=None;
+    date_time = now.strftime("%m/%d/%Y, %H:%M:%S")
+    def __init__(self, title, content,dateCreated=date_time):
        
         self.id = next(Notes.id_iter)
         self.title = title
         self.content = content
+        self.dateCreated=dateCreated
+
      
     def __repr__(self): #ung itsura sa array o kaya pinrint
         return str(self.id)+":"+self.title;
     def obj_dict(obj):
         return obj.__dict__;
     def show(self):
-        date= datetime.datetime.now()
-        print("\nNOTE DETAILS","\ntitle:", self.title, "\ncontent:", self.content , "\ndate added:",date);  #pag comma automatic space na
-
+        print("\nNOTE DETAILS","\ntitle:", self.title, "\ncontent:", self.content , "\ndate added:",self.dateCreated);  #pag comma automatic space na
 
 def confirm(func,*args):
     ok=input(args[0]);
@@ -41,8 +47,8 @@ def confirm(func,*args):
         func();
     #continue lang
     else:
-        print("");
-
+        print("wrong button, going main...");
+        Main();
     
 def Main():
     if(logged==True):
@@ -68,13 +74,18 @@ def Main():
     else:
         res=input("Press 'S' to sign in, 'L' to log in: ");
         if(res=="s"):
-            sign();
+            try:
+                sign();
+            except:
+                print("no connection with the server, pls try again later...");
         elif(res=="l"):
-            login();
+            try:
+                login();
+            except:
+                print("no connection with the server, pls try again later...");
         else:
             print("wrong input");
-            Main();
-        
+            Main();      
 
 def fetchNotes():
     print("loading notes...");
@@ -93,7 +104,7 @@ def fetchNotes():
             # json.dumps([ob.__dict__ for ob in notes]);
             imported=json.loads(result);
             for x in imported:
-                newNote=Notes(x['title'],x['content']);
+                newNote=Notes(x['title'],x['content'],x['dateCreated']);
                 notes.append(newNote);
             print("account syncing succesfully executed \n");
             conn.commit();
@@ -102,7 +113,6 @@ def fetchNotes():
         else:
             conn.commit();
             conn.close();
-
 
 # Sign In
 def sign():
@@ -129,9 +139,7 @@ def sign():
             conn.commit();
             conn.close();
             print("username already exists..pls try again...");
-            sign();
-
-        
+            sign();  
 
 def login():
     print("Logging In");
@@ -164,8 +172,7 @@ def login():
             
             
             Main();
-        
-    
+         
 #Log In
 def Add():
     print("Add a New Note");
@@ -197,6 +204,30 @@ def Delete():
         confirm(Delete,"wrong input, try to delete again?",True);
     Main();
 
+def edit(editId):
+    if type(editId)==int:
+        editId=int(editId);
+        editnote=list(filter(lambda x: x.id == editId, notes));
+
+        editWhat=input("What will you edit. 't' for title, c for 'content'");
+        if editWhat=="t":
+            editnote[0].title="george";
+            print("enter new title:");
+            typewrite(editnote[0].title);
+            newText=input();
+            editnote[0].title=newText;
+            Main();
+        elif editWhat=="c":
+            print("enter new content:");
+            typewrite(editnote[0].content);
+            newText=input();
+            editnote[0].content=newText;
+        else:
+            confirm(edit(editId),"wrong input, try to edit again?",True);
+
+    else:
+        confirm(edit(editId),"wrong input, try to edit again?",True);
+
 def browse():
     print("You choose to Browse a Note");
     print(notes);
@@ -206,11 +237,13 @@ def browse():
         filteredNote=list(filter(lambda x: x.id == openId, notes));
         if(len(filteredNote)>=1):
             filteredNote[0].show();
-            tryAgain=input("\nsearch again?");
-            if(tryAgain=="y"):
-                browse();
+            action=input("'e' for Edit Note, 'X'for go back");
+            if(action=="x"):
+                confirm(browse,"browse again? ",True);
+            elif(action=="e"):
+                edit(openId);
             else:
-                Main();
+                print("yeah");
         else:
             print("no entry detected");
             confirm(browse,"browse again? ",True);
@@ -227,8 +260,6 @@ def export():
         json.dump([ob.__dict__ for ob in notes],f)
         print("file exported successfully")
     Main();
-
-
     
 def importer():
     name=input("enter the file name: ");
@@ -237,7 +268,7 @@ def importer():
             notes.clear();
             jack=json.load(f); #para maging list ulit ung f gagamit ng json.load()
             for x in jack:
-                newNote=Notes(x['title'],x['content']);
+                newNote=Notes(x['title'],x['content'],x['dateCreated']);
                 notes.append(newNote);
             print("importing",name,"succesfully executed \n");
     else:
@@ -258,4 +289,5 @@ def save():
     conn.commit();
     conn.close();
     print("saved");
+
 Main()
